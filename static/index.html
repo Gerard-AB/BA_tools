@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bons Amics · Pagos</title>
+<link rel="icon" href="/logo.png">
+<style>
+  :root {
+    --fondo: #f4f6f9;
+    --panel: #ffffff;
+    --texto: #1b2430;
+    --suave: #5d6b7e;
+    --borde: #d9e0e9;
+    --acento: #1f4e79;
+    --acento-suave: #e8f0f8;
+    --error: #b3261e;
+    --aviso: #8a5a00;
+    --aviso-fondo: #fff5e0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fondo: #12171f;
+      --panel: #1a212b;
+      --texto: #e8edf4;
+      --suave: #9aa8ba;
+      --borde: #2c3644;
+      --acento: #6ba4dd;
+      --acento-suave: #1e2a38;
+      --error: #ff8a80;
+      --aviso: #ffcc80;
+      --aviso-fondo: #2e2413;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 16px 64px;
+    background: var(--fondo);
+    color: var(--texto);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: var(--suave); margin: 0 0 28px; }
+
+  #zona {
+    background: var(--panel);
+    border: 2px dashed var(--borde);
+    border-radius: 12px;
+    padding: 44px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  #zona:hover, #zona.encima { border-color: var(--acento); background: var(--acento-suave); }
+  #zona strong { display: block; font-size: 1.05rem; margin-bottom: 6px; }
+  #zona span { color: var(--suave); font-size: .9rem; }
+  input[type=file] { display: none; }
+
+  .caja {
+    background: var(--panel);
+    border: 1px solid var(--borde);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 20px;
+  }
+  .oculto { display: none; }
+
+  .resumen { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; margin-bottom: 16px; }
+  .dato { display: flex; flex-direction: column; }
+  .dato b { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+  .dato small { color: var(--suave); text-transform: uppercase; letter-spacing: .04em; font-size: .7rem; }
+
+  button {
+    background: var(--acento);
+    color: #fff;
+    border: 0;
+    border-radius: 8px;
+    padding: 11px 20px;
+    font-size: .95rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-left: auto;
+  }
+  button:hover { filter: brightness(1.1); }
+  @media (prefers-color-scheme: dark) { button { color: #0d1117; } }
+
+  .hoja + .hoja { margin-top: 26px; }
+  .titulo-hoja { display: flex; align-items: baseline; gap: 9px; margin: 0 0 8px; font-size: 1rem; }
+  .punto { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto; align-self: center; }
+  .titulo-hoja small { color: var(--suave); font-weight: 400; font-size: .84rem; }
+
+  .tabla-scroll { overflow-x: auto; border: 1px solid var(--borde); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: .87rem; }
+  th, td { padding: 7px 11px; text-align: left; border-bottom: 1px solid var(--borde); white-space: nowrap; }
+  th { font-weight: 600; position: sticky; top: 0; }
+  tr:last-child td { border-bottom: 0; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .pie { color: var(--suave); font-size: .82rem; margin-top: 8px; }
+
+  #error { color: var(--error); border-color: var(--error); }
+  #avisos { background: var(--aviso-fondo); border-color: var(--aviso); color: var(--aviso); font-size: .87rem; }
+  #avisos ul { margin: 6px 0 0; padding-left: 20px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Excel de pagos</h1>
+  <p class="sub">Sube el listado de inscripciones (.xlsx o .csv) y descarga el Excel ya montado.</p>
+
+  <div id="zona">
+    <strong>Arrastra el fichero aquí</strong>
+    <span>o haz clic para elegirlo &middot; .xlsx o .csv</span>
+    <input type="file" id="entrada" accept=".xlsx,.xlsm,.csv,.txt">
+  </div>
+
+  <div class="caja oculto" id="error"></div>
+  <div class="caja oculto" id="avisos"></div>
+
+  <div class="caja oculto" id="resultado">
+    <div class="resumen">
+      <div class="dato"><b id="nFilas">0</b><small>Inscripciones</small></div>
+      <div class="dato"><b id="nTotal">0 €</b><small>Total</small></div>
+      <div class="dato"><b id="nHojas">0</b><small>Hojas</small></div>
+      <button id="descargar">Descargar Excel</button>
+    </div>
+    <div id="hojas"></div>
+  </div>
+</main>
+
+<script>
+const zona = document.getElementById('zona');
+const entrada = document.getElementById('entrada');
+const cajaError = document.getElementById('error');
+const cajaAvisos = document.getElementById('avisos');
+const cajaResultado = document.getElementById('resultado');
+const euros = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
+let salida = null;
+
+zona.addEventListener('click', () => entrada.click());
+entrada.addEventListener('change', () => { if (entrada.files[0]) enviar(entrada.files[0]); });
+
+['dragenter', 'dragover'].forEach(ev =>
+  zona.addEventListener(ev, e => { e.preventDefault(); zona.classList.add('encima'); }));
+['dragleave', 'drop'].forEach(ev =>
+  zona.addEventListener(ev, e => { e.preventDefault(); zona.classList.remove('encima'); }));
+zona.addEventListener('drop', e => { if (e.dataTransfer.files[0]) enviar(e.dataTransfer.files[0]); });
+
+function ocultarTodo() {
+  cajaError.classList.add('oculto');
+  cajaAvisos.classList.add('oculto');
+  cajaResultado.classList.add('oculto');
+}
+
+function mostrarError(mensaje) {
+  cajaError.textContent = mensaje;
+  cajaError.classList.remove('oculto');
+}
+
+async function enviar(fichero) {
+  ocultarTodo();
+  zona.querySelector('strong').textContent = 'Procesando ' + fichero.name + '…';
+
+  const datos = new FormData();
+  datos.append('fichero', fichero);
+
+  try {
+    const respuesta = await fetch('/procesar', { method: 'POST', body: datos });
+    const json = await respuesta.json();
+    if (!respuesta.ok) { mostrarError(json.error || 'Error al procesar el fichero.'); return; }
+    pintar(json);
+  } catch (e) {
+    mostrarError('No se ha podido contactar con el servidor: ' + e.message);
+  } finally {
+    zona.querySelector('strong').textContent = 'Arrastra el fichero aquí';
+    entrada.value = '';
+  }
+}
+
+function esc(valor) {
+  return String(valor ?? '').replace(/[&<>"]/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'
+  }[c]));
+}
+
+const MAX_PREVIA = 25;
+
+function pintar(datos) {
+  salida = datos;
+
+  document.getElementById('nFilas').textContent = datos.total_filas;
+  document.getElementById('nTotal').textContent = euros.format(datos.total_importe);
+  document.getElementById('nHojas').textContent = datos.hojas.length;
+
+  document.getElementById('hojas').innerHTML = datos.hojas.map(hoja => {
+    const estiloTh = 'background:#' + hoja.color + ';color:#' + hoja.color_texto;
+    const cabecera = '<tr>' + datos.cabecera
+      .map(c => '<th style="' + estiloTh + '">' + esc(c) + '</th>').join('') + '</tr>';
+
+    const visibles = hoja.filas.slice(0, MAX_PREVIA);
+    const cuerpo = visibles.map(fila =>
+      '<tr>' + fila.map((celda, i) =>
+        (i === 6 && typeof celda === 'number')
+          ? '<td class="num">' + euros.format(celda) + '</td>'
+          : '<td>' + esc(celda) + '</td>'
+      ).join('') + '</tr>'
+    ).join('');
+
+    const restantes = hoja.filas.length - visibles.length;
+
+    return '<section class="hoja">' +
+      '<h2 class="titulo-hoja">' +
+        '<span class="punto" style="background:#' + hoja.color + '"></span>' +
+        esc(hoja.nombre) +
+        '<small>' + hoja.filas.length + ' inscripciones &middot; ' + euros.format(hoja.total) + '</small>' +
+      '</h2>' +
+      '<div class="tabla-scroll"><table><thead>' + cabecera + '</thead><tbody>' + cuerpo + '</tbody></table></div>' +
+      (restantes > 0 ? '<p class="pie">y ' + restantes + ' fila(s) más en el Excel.</p>' : '') +
+    '</section>';
+  }).join('');
+
+  if (datos.avisos.length) {
+    cajaAvisos.innerHTML = '<b>Revisa estas filas:</b><ul>' +
+      datos.avisos.slice(0, 20).map(a => '<li>' + esc(a) + '</li>').join('') + '</ul>';
+    cajaAvisos.classList.remove('oculto');
+  }
+
+  cajaResultado.classList.remove('oculto');
+}
+
+document.getElementById('descargar').addEventListener('click', () => {
+  if (!salida) return;
+  const binario = atob(salida.xlsx);
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+  const url = URL.createObjectURL(new Blob([bytes], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  }));
+  const enlace = document.createElement('a');
+  enlace.href = url;
+  enlace.download = salida.nombre;
+  enlace.click();
+  URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>

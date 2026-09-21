@@ -1,0 +1,13 @@
+# Normaliza los finales de línea: LF en el repositorio, nativos al descargar.
+* text=auto
+
+*.py   text eol=lf
+*.md   text eol=lf
+*.html text eol=lf
+*.txt  text eol=lf
+
+# Los CSV de origen vienen de Excel con CRLF; se respetan tal cual.
+*.csv  text eol=crlf
+
+*.png  binary
+*.xlsx binary

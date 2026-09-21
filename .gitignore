@@ -1,0 +1,30 @@
+# --- Datos reales -----------------------------------------------------------
+# Los listados de inscripciones llevan nombres de alumnos menores de edad.
+# Nunca deben acabar en el repositorio: trabaja siempre dentro de datos/.
+datos/
+*.xlsx
+*.xls
+*.xlsm
+!ejemplo/*.xlsx
+
+# El CSV de ejemplo sí se versiona; cualquier otro CSV, no.
+*.csv
+!ejemplo/*.csv
+
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Editores y sistema ------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
