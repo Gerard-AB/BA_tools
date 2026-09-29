@@ -48,18 +48,22 @@ funcionen. Acepta coma decimal y separador de miles (`1.234,56 €` → `1234.56
 Cada alumno va al fichero de su ciclo. Solo se generan los grupos que tienen alumnos,
 así que un listado de un solo ciclo produce un único Excel.
 
-| Curso | Fichero | Color de cabecera |
-| --- | --- | --- |
-| Tercer o Quart de Primària | `<listado>_primaria-3-4.xlsx` | Verde `#2E7D32` |
-| Cinqué o Sisé de Primària | `<listado>_primaria-5-6.xlsx` | Lila `#7B4EA3` |
-| Primer o Segón de la ESO | `<listado>_eso-1-2.xlsx` | Amarillo `#FFC000` |
-| Cualquier otro | `<listado>_otros.xlsx` | Azul `#1F4E79` |
+| Curso | Grupo | Fichero | Color de cabecera |
+| --- | --- | --- | --- |
+| Tercer o Quart de Primària | Grumets | `<listado>_grumets.xlsx` | Verde `#2E7D32` |
+| Cinqué o Sisé de Primària | Ulls Oberts | `<listado>_ulls-oberts.xlsx` | Lila `#7B4EA3` |
+| Primer o Segón de la ESO | Mà Oberta | `<listado>_ma-oberta.xlsx` | Amarillo `#FFC000` |
+| Tercer o Quart de la ESO | Cor Obert I - II | `<listado>_cor-obert-i-ii.xlsx` | Azul claro `#5DADE2` |
+| Cualquier otro | Cor Obert III - IV | `<listado>_cor-obert-iii-iv.xlsx` | Azul `#1F4E79` |
 
 El nombre de cada fichero parte del que subiste, así que `inscripciones-ejemplo.csv`
-produce `inscripciones-ejemplo_primaria-3-4.xlsx` y compañía.
+produce `inscripciones-ejemplo_grumets.xlsx` y compañía.
 
-La clasificación mira **etapa y nivel por separado**, porque `Primer de la ESO` y
-`Primer de Primària` comparten ordinal y van a hojas distintas.
+`Cor Obert III - IV` es además el cajón de sastre: recoge todo lo que no encaje en los
+otros cuatro grupos (Infantil, Primer y Segón de Primària, Batxillerat…).
+
+La clasificación mira **etapa y nivel por separado**, porque `Tercer de Primària` y
+`Tercer de la ESO` comparten ordinal y van a grupos distintos.
 
 Si alguna fila no se puede interpretar del todo —un beneficiario sin coma, un importe
 que no es un número— la fila se procesa igual y la web avisa indicando cuál, para que

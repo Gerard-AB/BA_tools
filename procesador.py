@@ -24,12 +24,12 @@ ALIAS = {
 
 FORMATO_EURO = '#,##0.00\\ "€"'
 
-# Grupos de curso -> hoja propia con su color de cabecera.
+# Grupos de curso -> fichero propio con su color de cabecera.
 # Cada grupo se identifica por la etapa (primaria / eso) y el nivel.
 GRUPOS = [
     {
         "clave": "primaria_34",
-        "hoja": "Primària 3-4",
+        "hoja": "Grumets",
         "etapa": "primaria",
         "niveles": {"tercer", "tercero", "quart", "cuarto"},
         "color": "2E7D32",          # verde
@@ -37,7 +37,7 @@ GRUPOS = [
     },
     {
         "clave": "primaria_56",
-        "hoja": "Primària 5-6",
+        "hoja": "Ulls Oberts",
         "etapa": "primaria",
         "niveles": {"cinque", "cinquen", "quinto", "sise", "sisen", "sexto"},
         "color": "7B4EA3",          # lila
@@ -45,17 +45,25 @@ GRUPOS = [
     },
     {
         "clave": "eso_12",
-        "hoja": "ESO 1-2",
+        "hoja": "Mà Oberta",
         "etapa": "eso",
         "niveles": {"primer", "primero", "segon", "segundo"},
         "color": "FFC000",          # amarillo
+        "color_texto": "1B2430",
+    },
+    {
+        "clave": "eso_34",
+        "hoja": "Cor Obert I - II",
+        "etapa": "eso",
+        "niveles": {"tercer", "tercero", "quart", "cuarto"},
+        "color": "5DADE2",          # azul claro
         "color_texto": "1B2430",
     },
 ]
 
 GRUPO_RESTO = {
     "clave": "otros",
-    "hoja": "Otros",
+    "hoja": "Cor Obert III - IV",
     "color": "1F4E79",              # azul
     "color_texto": "FFFFFF",
 }

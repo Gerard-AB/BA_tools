@@ -33,18 +33,22 @@ def csv_bytes(texto):
 # --- Clasificación de cursos -------------------------------------------------
 
 @pytest.mark.parametrize("curso, hoja", [
-    ("Tercer de Primària-A", "Primària 3-4"),
-    ("Quart de Primària-C", "Primària 3-4"),
-    ("Cinqué de Primària-B", "Primària 5-6"),
-    ("Sisè de Primària", "Primària 5-6"),
-    ("Primer de la ESO-A", "ESO 1-2"),
-    ("Segón de la ESO", "ESO 1-2"),
-    ("Segon d'ESO-B", "ESO 1-2"),
-    # El ordinal solo no basta: hay que mirar también la etapa.
-    ("Primer de Primària", "Otros"),
-    ("Tercer de la ESO", "Otros"),
-    ("Infantil 5 anys", "Otros"),
-    ("", "Otros"),
+    ("Tercer de Primària-A", "Grumets"),
+    ("Quart de Primària-C", "Grumets"),
+    ("Cinqué de Primària-B", "Ulls Oberts"),
+    ("Sisè de Primària", "Ulls Oberts"),
+    ("Primer de la ESO-A", "Mà Oberta"),
+    ("Segón de la ESO", "Mà Oberta"),
+    ("Segon d'ESO-B", "Mà Oberta"),
+    ("Tercer de la ESO-A", "Cor Obert I - II"),
+    ("Quart de la ESO", "Cor Obert I - II"),
+    ("Quart d'ESO-B", "Cor Obert I - II"),
+    # El ordinal solo no basta: Tercer de Primària y Tercer de la ESO
+    # comparten nivel pero van a grupos distintos.
+    ("Primer de Primària", "Cor Obert III - IV"),
+    ("Segón de Primària", "Cor Obert III - IV"),
+    ("Infantil 5 anys", "Cor Obert III - IV"),
+    ("", "Cor Obert III - IV"),
 ])
 def test_clasificar(curso, hoja):
     assert clasificar(curso)["hoja"] == hoja
@@ -119,7 +123,8 @@ def test_errores(contenido, nombre, trozo):
 def test_un_xlsx_por_grupo_con_su_color():
     hojas, _ = convertir(EJEMPLO.read_bytes(), "ejemplo.csv")
 
-    assert [h["nombre"] for h in hojas] == ["Primària 3-4", "Primària 5-6", "ESO 1-2", "Otros"]
+    assert [h["nombre"] for h in hojas] == [
+        "Grumets", "Ulls Oberts", "Mà Oberta", "Cor Obert I - II", "Cor Obert III - IV"]
 
     for hoja in hojas:
         wb = load_workbook(io.BytesIO(hoja["xlsx"]))
@@ -138,10 +143,11 @@ def test_nombre_de_archivo_por_grupo():
     hojas, _ = convertir(EJEMPLO.read_bytes(), "inscripciones-ejemplo.csv")
 
     assert [h["archivo"] for h in hojas] == [
-        "inscripciones-ejemplo_primaria-3-4.xlsx",
-        "inscripciones-ejemplo_primaria-5-6.xlsx",
-        "inscripciones-ejemplo_eso-1-2.xlsx",
-        "inscripciones-ejemplo_otros.xlsx",
+        "inscripciones-ejemplo_grumets.xlsx",
+        "inscripciones-ejemplo_ulls-oberts.xlsx",
+        "inscripciones-ejemplo_ma-oberta.xlsx",
+        "inscripciones-ejemplo_cor-obert-i-ii.xlsx",
+        "inscripciones-ejemplo_cor-obert-iii-iv.xlsx",
     ]
 
 
@@ -154,8 +160,8 @@ def test_endpoint_devuelve_un_excel_por_grupo():
 
     assert respuesta.status_code == 200
     datos = respuesta.json()
-    assert datos["total_filas"] == 20
-    assert len(datos["hojas"]) == 4
+    assert datos["total_filas"] == 22
+    assert len(datos["hojas"]) == 5
 
     for hoja in datos["hojas"]:
         assert hoja["archivo"].startswith("ejemplo_") and hoja["archivo"].endswith(".xlsx")
