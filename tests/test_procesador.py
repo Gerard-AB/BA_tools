@@ -53,12 +53,12 @@ def test_clasificar(curso, hoja):
 # --- Conversión --------------------------------------------------------------
 
 def test_separa_nombre_y_apellidos():
-    _, hojas, _ = convertir(csv_bytes(CSV_MINIMO), "x.csv")
+    hojas, _ = convertir(csv_bytes(CSV_MINIMO), "x.csv")
     assert hojas[0]["filas"][0][:3] == ["Ada", "Gómez Puig", "Quart de Primària-A"]
 
 
 def test_sin_coma_todo_va_al_nombre_y_avisa():
-    _, hojas, avisos = convertir(
+    hojas, avisos = convertir(
         csv_bytes("Beneficiari;Classe;Total compra\nSinComa;Quart de Primària;45\n"), "x.csv")
     assert hojas[0]["filas"][0][:2] == ["SinComa", ""]
     assert len(avisos) == 1
@@ -68,27 +68,27 @@ def test_sin_coma_todo_va_al_nombre_y_avisa():
     ("45", 45), ("54,50", 54.5), ("1.234,56 €", 1234.56), ("66,5", 66.5),
 ])
 def test_importes(bruto, esperado):
-    _, hojas, _ = convertir(
+    hojas, _ = convertir(
         csv_bytes(f"Beneficiari;Classe;Total compra\nApe, Nom;Quart de Primària;{bruto}\n"), "x.csv")
     assert hojas[0]["filas"][0][6] == esperado
 
 
 def test_importe_no_numerico_se_copia_y_avisa():
-    _, hojas, avisos = convertir(
+    hojas, avisos = convertir(
         csv_bytes("Beneficiari;Classe;Total compra\nApe, Nom;Quart de Primària;gratis\n"), "x.csv")
     assert hojas[0]["filas"][0][6] == "gratis"
     assert len(avisos) == 1
 
 
 def test_cabeceras_con_acentos_mayusculas_y_alias():
-    _, hojas, _ = convertir(
+    hojas, _ = convertir(
         csv_bytes("BENEFICIARIO;Curso;Importe\nApe, Nom;Quart de Primària;45\n"), "x.csv")
     assert hojas[0]["filas"][0][0] == "Nom"
 
 
 def test_csv_y_xlsx_dan_el_mismo_resultado():
     crudo = EJEMPLO.read_bytes()
-    _, desde_csv, _ = convertir(crudo, "ejemplo.csv")
+    desde_csv, _ = convertir(crudo, "ejemplo.csv")
 
     wb = Workbook()
     ws = wb.active
@@ -96,7 +96,7 @@ def test_csv_y_xlsx_dan_el_mismo_resultado():
         ws.append(linea.split(";"))
     buffer = io.BytesIO()
     wb.save(buffer)
-    _, desde_xlsx, _ = convertir(buffer.getvalue(), "ejemplo.xlsx")
+    desde_xlsx, _ = convertir(buffer.getvalue(), "ejemplo.xlsx")
 
     assert [h["filas"] for h in desde_csv] == [h["filas"] for h in desde_xlsx]
 
@@ -116,14 +116,17 @@ def test_errores(contenido, nombre, trozo):
 
 # --- XLSX generado -----------------------------------------------------------
 
-def test_xlsx_una_hoja_por_grupo_con_su_color():
-    xlsx, hojas, _ = convertir(EJEMPLO.read_bytes(), "ejemplo.csv")
-    wb = load_workbook(io.BytesIO(xlsx))
+def test_un_xlsx_por_grupo_con_su_color():
+    hojas, _ = convertir(EJEMPLO.read_bytes(), "ejemplo.csv")
 
-    assert wb.sheetnames == ["Primària 3-4", "Primària 5-6", "ESO 1-2", "Otros"]
+    assert [h["nombre"] for h in hojas] == ["Primària 3-4", "Primària 5-6", "ESO 1-2", "Otros"]
 
     for hoja in hojas:
-        ws = wb[hoja["nombre"]]
+        wb = load_workbook(io.BytesIO(hoja["xlsx"]))
+        # Cada fichero lleva una sola hoja: la de su grupo.
+        assert wb.sheetnames == [hoja["nombre"]]
+
+        ws = wb.active
         assert [c.value for c in ws[1]] == CABECERA
         assert ws.max_row == len(hoja["filas"]) + 1
         assert ws.cell(1, 1).fill.fgColor.rgb[-6:] == hoja["color"]
@@ -131,19 +134,34 @@ def test_xlsx_una_hoja_por_grupo_con_su_color():
         assert "€" in ws.cell(2, len(CABECERA)).number_format
 
 
+def test_nombre_de_archivo_por_grupo():
+    hojas, _ = convertir(EJEMPLO.read_bytes(), "inscripciones-ejemplo.csv")
+
+    assert [h["archivo"] for h in hojas] == [
+        "inscripciones-ejemplo_primaria-3-4.xlsx",
+        "inscripciones-ejemplo_primaria-5-6.xlsx",
+        "inscripciones-ejemplo_eso-1-2.xlsx",
+        "inscripciones-ejemplo_otros.xlsx",
+    ]
+
+
 # --- API ---------------------------------------------------------------------
 
-def test_endpoint_devuelve_el_excel():
+def test_endpoint_devuelve_un_excel_por_grupo():
     cliente = TestClient(app)
     respuesta = cliente.post(
         "/procesar", files={"fichero": ("ejemplo.csv", EJEMPLO.read_bytes(), "text/csv")})
 
     assert respuesta.status_code == 200
     datos = respuesta.json()
-    assert datos["nombre"] == "ejemplo_pagos.xlsx"
     assert datos["total_filas"] == 20
     assert len(datos["hojas"]) == 4
-    assert load_workbook(io.BytesIO(base64.b64decode(datos["xlsx"]))).sheetnames
+
+    for hoja in datos["hojas"]:
+        assert hoja["archivo"].startswith("ejemplo_") and hoja["archivo"].endswith(".xlsx")
+        wb = load_workbook(io.BytesIO(base64.b64decode(hoja["xlsx"])))
+        assert wb.sheetnames == [hoja["nombre"]]
+        assert wb.active.max_row == len(hoja["filas"]) + 1
 
 
 def test_endpoint_rechaza_fichero_invalido():

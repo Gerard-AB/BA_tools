@@ -1,13 +1,14 @@
 """
-Lógica de conversión: fichero de inscripciones (XLSX o CSV) -> XLSX de pagos.
+Lógica de conversión: fichero de inscripciones (XLSX o CSV) -> un XLSX por grupo.
 
-Es la misma transformación de excel.py / main.py, pero trabajando en memoria
-para poder usarla desde la web.
+Trabaja siempre en memoria, para poder usarla desde la web sin tocar el disco.
 """
 
 import csv
 import io
 import unicodedata
+from pathlib import Path
+
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
@@ -279,23 +280,43 @@ def _montar_hoja(ws, hoja):
         ws.column_dimensions[get_column_letter(i)].width = min(max(ancho + 2, 10), 40)
 
 
-def generar_xlsx(hojas):
-    """Construye el XLSX en memoria (una hoja por grupo) y devuelve sus bytes."""
+def generar_xlsx(hoja):
+    """Construye el XLSX de un grupo en memoria y devuelve sus bytes."""
     wb = Workbook()
-    wb.remove(wb.active)  # quitamos la hoja vacía que crea openpyxl
-
-    for hoja in hojas:
-        ws = wb.create_sheet(title=hoja["nombre"])
-        ws.sheet_properties.tabColor = hoja["color"]
-        _montar_hoja(ws, hoja)
+    ws = wb.active
+    ws.title = hoja["nombre"]
+    ws.sheet_properties.tabColor = hoja["color"]
+    _montar_hoja(ws, hoja)
 
     buffer = io.BytesIO()
     wb.save(buffer)
     return buffer.getvalue()
 
 
+def nombre_archivo(base, hoja):
+    """
+    Nombre del fichero de un grupo: «listado_primaria-3-4.xlsx».
+    Sin acentos ni espacios, para que no se rompa al descargar.
+    """
+    trozos = ''.join(
+        c if c.isalnum() else ' ' for c in normalizar(hoja["nombre"])
+    ).split()
+    return f"{base}_{'-'.join(trozos)}.xlsx"
+
+
 def convertir(contenido, nombre_fichero):
-    """Punto de entrada: bytes subidos -> (bytes del xlsx, hojas, avisos)."""
+    """
+    Punto de entrada: bytes subidos -> (hojas, avisos).
+
+    Cada hoja lleva ya su propio XLSX en la clave «xlsx», de modo que se
+    descarga un fichero por grupo en vez de uno solo con varias pestañas.
+    """
+    base = Path(nombre_fichero or "resultado").stem or "resultado"
     filas_origen = leer_filas(contenido, nombre_fichero)
     hojas, avisos = procesar(filas_origen)
-    return generar_xlsx(hojas), hojas, avisos
+
+    for hoja in hojas:
+        hoja["archivo"] = nombre_archivo(base, hoja)
+        hoja["xlsx"] = generar_xlsx(hoja)
+
+    return hojas, avisos

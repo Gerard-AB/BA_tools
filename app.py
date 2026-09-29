@@ -39,20 +39,28 @@ async def procesar_fichero(fichero: UploadFile = File(...)):
         return JSONResponse({"error": "El fichero supera los 10 MB."}, status_code=400)
 
     try:
-        xlsx, hojas, avisos = convertir(contenido, fichero.filename or "")
+        hojas, avisos = convertir(contenido, fichero.filename or "")
     except ErrorProceso as e:
         return JSONResponse({"error": str(e)}, status_code=400)
     except Exception as e:
         return JSONResponse({"error": f"Error inesperado: {e}"}, status_code=500)
 
-    nombre_salida = Path(fichero.filename or "resultado").stem + "_pagos.xlsx"
-
     return {
-        "nombre": nombre_salida,
         "cabecera": CABECERA,
-        "hojas": hojas,
+        # Cada grupo trae su propio fichero: se descarga uno por grupo.
+        "hojas": [
+            {
+                "nombre": h["nombre"],
+                "color": h["color"],
+                "color_texto": h["color_texto"],
+                "filas": h["filas"],
+                "total": h["total"],
+                "archivo": h["archivo"],
+                "xlsx": base64.b64encode(h["xlsx"]).decode("ascii"),
+            }
+            for h in hojas
+        ],
         "total_filas": sum(len(h["filas"]) for h in hojas),
         "total_importe": sum(h["total"] for h in hojas),
         "avisos": avisos,
-        "xlsx": base64.b64encode(xlsx).decode("ascii"),
     }

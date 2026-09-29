@@ -1,12 +1,12 @@
 # Pagos Bons Amics
 
-Aplicación web que convierte el listado de inscripciones del colegio en el Excel de
-pagos: separa nombre y apellidos, normaliza los importes y reparte a los alumnos en
-una hoja por ciclo, cada una con su color.
+Aplicación web que convierte el listado de inscripciones del colegio en Excel de
+pagos: separa nombre y apellidos, normaliza los importes y reparte a los alumnos por
+ciclo, generando **un fichero por grupo** con su propio color.
 
-Subes un `.xlsx` o un `.csv`, ves el resultado en pantalla y descargas el Excel. El
-servidor no guarda nada en disco: todo se procesa en memoria y el fichero viaja de
-vuelta en la misma respuesta.
+Subes un `.xlsx` o un `.csv`, ves el resultado en pantalla y descargas cada grupo por
+separado. El servidor no guarda nada en disco: todo se procesa en memoria y los
+ficheros viajan de vuelta en la misma respuesta.
 
 ## Instalación
 
@@ -43,17 +43,20 @@ Del fichero de entrada solo se usan tres columnas: **Beneficiari**, **Classe** y
 El importe se escribe como número real, no como texto, para que las sumas de Excel
 funcionen. Acepta coma decimal y separador de miles (`1.234,56 €` → `1234.56`).
 
-### Reparto por hojas
+### Un Excel por grupo
 
-Cada alumno va a la hoja de su ciclo. Solo se crean las hojas que tienen alumnos, así
-que un listado de un solo ciclo produce un Excel de una sola hoja.
+Cada alumno va al fichero de su ciclo. Solo se generan los grupos que tienen alumnos,
+así que un listado de un solo ciclo produce un único Excel.
 
-| Curso | Hoja | Color de cabecera |
+| Curso | Fichero | Color de cabecera |
 | --- | --- | --- |
-| Tercer o Quart de Primària | `Primària 3-4` | Verde `#2E7D32` |
-| Cinqué o Sisé de Primària | `Primària 5-6` | Lila `#7B4EA3` |
-| Primer o Segón de la ESO | `ESO 1-2` | Amarillo `#FFC000` |
-| Cualquier otro | `Otros` | Azul `#1F4E79` |
+| Tercer o Quart de Primària | `<listado>_primaria-3-4.xlsx` | Verde `#2E7D32` |
+| Cinqué o Sisé de Primària | `<listado>_primaria-5-6.xlsx` | Lila `#7B4EA3` |
+| Primer o Segón de la ESO | `<listado>_eso-1-2.xlsx` | Amarillo `#FFC000` |
+| Cualquier otro | `<listado>_otros.xlsx` | Azul `#1F4E79` |
+
+El nombre de cada fichero parte del que subiste, así que `inscripciones-ejemplo.csv`
+produce `inscripciones-ejemplo_primaria-3-4.xlsx` y compañía.
 
 La clasificación mira **etapa y nivel por separado**, porque `Primer de la ESO` y
 `Primer de Primària` comparten ordinal y van a hojas distintas.
@@ -78,8 +81,9 @@ un script o desde otro programa sin levantar el servidor:
 ```python
 from procesador import convertir
 
-xlsx, hojas, avisos = convertir(open("listado.csv", "rb").read(), "listado.csv")
-open("pagos.xlsx", "wb").write(xlsx)
+hojas, avisos = convertir(open("listado.csv", "rb").read(), "listado.csv")
+for hoja in hojas:
+    open(hoja["archivo"], "wb").write(hoja["xlsx"])
 ```
 
 ## Tests

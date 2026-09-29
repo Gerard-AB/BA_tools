@@ -73,24 +73,33 @@
   .dato b { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
   .dato small { color: var(--suave); text-transform: uppercase; letter-spacing: .04em; font-size: .7rem; }
 
-  button {
-    background: var(--acento);
-    color: #fff;
+  .hoja + .hoja { margin-top: 30px; }
+  .titulo-hoja {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 9px;
+    margin: 0 0 8px;
+    font-size: 1rem;
+  }
+  .punto { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto; }
+  .titulo-hoja small { color: var(--suave); font-weight: 400; font-size: .84rem; }
+
+  /* Un botón de descarga por grupo, con el color del propio grupo */
+  .descargar {
+    margin-left: auto;
     border: 0;
     border-radius: 8px;
-    padding: 11px 20px;
-    font-size: .95rem;
+    padding: 8px 15px;
+    font-size: .85rem;
     font-weight: 600;
     cursor: pointer;
-    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
   }
-  button:hover { filter: brightness(1.1); }
-  @media (prefers-color-scheme: dark) { button { color: #0d1117; } }
-
-  .hoja + .hoja { margin-top: 26px; }
-  .titulo-hoja { display: flex; align-items: baseline; gap: 9px; margin: 0 0 8px; font-size: 1rem; }
-  .punto { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto; align-self: center; }
-  .titulo-hoja small { color: var(--suave); font-weight: 400; font-size: .84rem; }
+  .descargar:hover { filter: brightness(1.08); }
+  .descargar svg { width: 14px; height: 14px; }
 
   .tabla-scroll { overflow-x: auto; border: 1px solid var(--borde); border-radius: 8px; }
   table { border-collapse: collapse; width: 100%; font-size: .87rem; }
@@ -123,9 +132,9 @@
     <div class="resumen">
       <div class="dato"><b id="nFilas">0</b><small>Inscripciones</small></div>
       <div class="dato"><b id="nTotal">0 €</b><small>Total</small></div>
-      <div class="dato"><b id="nHojas">0</b><small>Hojas</small></div>
-      <button id="descargar">Descargar Excel</button>
+      <div class="dato"><b id="nHojas">0</b><small>Ficheros</small></div>
     </div>
+    <p class="pie" id="explicacion">Se genera un Excel por grupo. Descárgalos uno a uno.</p>
     <div id="hojas"></div>
   </div>
 </main>
@@ -137,7 +146,6 @@ const cajaError = document.getElementById('error');
 const cajaAvisos = document.getElementById('avisos');
 const cajaResultado = document.getElementById('resultado');
 const euros = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
-let salida = null;
 
 zona.addEventListener('click', () => entrada.click());
 entrada.addEventListener('change', () => { if (entrada.files[0]) enviar(entrada.files[0]); });
@@ -187,14 +195,31 @@ function esc(valor) {
 
 const MAX_PREVIA = 25;
 
-function pintar(datos) {
-  salida = datos;
+const ICONO_DESCARGA =
+  '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" ' +
+  'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<path d="M8 1v9M4.5 6.5 8 10l3.5-3.5M1.5 12.5v1a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-1"/></svg>';
 
+function descargar(hoja) {
+  const binario = atob(hoja.xlsx);
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+  const url = URL.createObjectURL(new Blob([bytes], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  }));
+  const enlace = document.createElement('a');
+  enlace.href = url;
+  enlace.download = hoja.archivo;
+  enlace.click();
+  URL.revokeObjectURL(url);
+}
+
+function pintar(datos) {
   document.getElementById('nFilas').textContent = datos.total_filas;
   document.getElementById('nTotal').textContent = euros.format(datos.total_importe);
   document.getElementById('nHojas').textContent = datos.hojas.length;
 
-  document.getElementById('hojas').innerHTML = datos.hojas.map(hoja => {
+  document.getElementById('hojas').innerHTML = datos.hojas.map((hoja, indice) => {
     const estiloTh = 'background:#' + hoja.color + ';color:#' + hoja.color_texto;
     const cabecera = '<tr>' + datos.cabecera
       .map(c => '<th style="' + estiloTh + '">' + esc(c) + '</th>').join('') + '</tr>';
@@ -209,17 +234,26 @@ function pintar(datos) {
     ).join('');
 
     const restantes = hoja.filas.length - visibles.length;
+    const estiloBoton = 'background:#' + hoja.color + ';color:#' + hoja.color_texto;
 
     return '<section class="hoja">' +
       '<h2 class="titulo-hoja">' +
         '<span class="punto" style="background:#' + hoja.color + '"></span>' +
         esc(hoja.nombre) +
         '<small>' + hoja.filas.length + ' inscripciones &middot; ' + euros.format(hoja.total) + '</small>' +
+        '<button class="descargar" style="' + estiloBoton + '" data-indice="' + indice + '">' +
+          ICONO_DESCARGA + 'Descargar' +
+        '</button>' +
       '</h2>' +
       '<div class="tabla-scroll"><table><thead>' + cabecera + '</thead><tbody>' + cuerpo + '</tbody></table></div>' +
-      (restantes > 0 ? '<p class="pie">y ' + restantes + ' fila(s) más en el Excel.</p>' : '') +
+      '<p class="pie">' + esc(hoja.archivo) +
+        (restantes > 0 ? ' &middot; y ' + restantes + ' fila(s) más en el Excel' : '') +
+      '</p>' +
     '</section>';
   }).join('');
+
+  document.querySelectorAll('.descargar').forEach(boton =>
+    boton.addEventListener('click', () => descargar(datos.hojas[boton.dataset.indice])));
 
   if (datos.avisos.length) {
     cajaAvisos.innerHTML = '<b>Revisa estas filas:</b><ul>' +
@@ -230,20 +264,6 @@ function pintar(datos) {
   cajaResultado.classList.remove('oculto');
 }
 
-document.getElementById('descargar').addEventListener('click', () => {
-  if (!salida) return;
-  const binario = atob(salida.xlsx);
-  const bytes = new Uint8Array(binario.length);
-  for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
-  const url = URL.createObjectURL(new Blob([bytes], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  }));
-  const enlace = document.createElement('a');
-  enlace.href = url;
-  enlace.download = salida.nombre;
-  enlace.click();
-  URL.revokeObjectURL(url);
-});
 </script>
 </body>
 </html>
